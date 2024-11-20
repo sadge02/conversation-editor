@@ -6,7 +6,7 @@ import img from "./images/plugin logo.gif";
 import Tutorial from './components/panels/Tutorial';
 import Links from './components/panels/Links';
 import Plugin from './components/panels/Plugin';
-import NodeEditor from './components/NodeEditor';
+import NodeEditor from './components/panels/NodeEditor';
 
 function App() {
   return (

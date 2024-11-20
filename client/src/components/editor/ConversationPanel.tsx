@@ -23,7 +23,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   exportJson,
 }) => {
   return (
-    <div>
+    <div className="w-[250px]">
       <h1 className="text-white font-bold text-xl pb-5">Conversation</h1>
       <div className="space-y-4">
         <div>
