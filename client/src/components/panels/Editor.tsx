@@ -1,6 +1,6 @@
 // client/src/components/Editor.tsx
 import React from 'react';
-import NodeEditor from './NodeEditor';
+import NodeEditor from '../NodeEditor';
 
 const Editor = () => {
     return (
