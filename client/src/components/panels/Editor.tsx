@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Background,
   ReactFlow,
@@ -7,69 +7,166 @@ import {
   useEdgesState,
   addEdge,
   Panel,
-} from '@xyflow/react';
-import { Button } from '../ui/button';
-import { Select, SelectTrigger, SelectGroup, SelectValue, SelectContent, SelectItem } from '../ui/select';
-import { Input } from '../ui/input';
+} from "@xyflow/react";
+import { Button } from "../ui/button";
+import { Select, SelectTrigger, SelectGroup, SelectValue, SelectContent, SelectItem } from "../ui/select";
+import { Input } from "../ui/input";
+import { toast } from "sonner";
 
-import '@xyflow/react/dist/style.css';
+import "@xyflow/react/dist/style.css";
 
+const nodesObject = {};
 
-const getNodeId = () => `randomnode_${+new Date()}`;
+const initialNodes = [];
+const initialEdges = [];
 
-const initialNodes = [
-  { id: '1', data: { label: 'Node 1' }, position: { x: 0, y: -50 } },
-  { id: '2', data: { label: 'Node 2' }, position: { x: 0, y: 50 } },
-];
-
-const initialEdges = [{ id: 'e1-2', source: '1', target: '2' }];
+const CustomNode = ({ data }) => {
+  return (
+    <div
+      style={{
+        border: "2px solid #333",
+        padding: "10px",
+        borderRadius: "8px",
+        backgroundColor: "#f0f0f0",
+        minWidth: "150px",
+        textAlign: "center",
+      }}
+    >
+      <strong>{data.nodeID}</strong>
+      <br />
+      {data.nodeType} Node
+      <br />
+      {data.nodeTrigger} Trigger
+    </div>
+  );
+};
 
 const SaveRestore = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodeData, setNodeData] = useState({
+    nodeID: "",
+    nodeType: "",
+    nodeTrigger: "",
+  });
+  const [selectedNodeId, setSelectedNodeId] = useState(null); // Tracks the selected node ID
+  const [editedJson, setEditedJson] = useState(""); // Tracks the editable JSON
+
+  const updateNodeData = (key, value) => {
+    setNodeData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   const onConnect = useCallback(
-    (params: any) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
   );
 
   const onAdd = useCallback(() => {
+    const { nodeID, nodeType, nodeTrigger } = nodeData;
+
+    if (!nodeID) {
+      toast("Please provide a valid Node ID");
+      return;
+    }
+
+    if (nodesObject[nodeID]) {
+      toast("Node ID already exists");
+      return;
+    }
+
+    if (!nodeType) {
+      toast("Please select a Node Type");
+      return;
+    }
+
+    if (!nodeTrigger) {
+      toast("Please select a Trigger Type");
+      return;
+    }
+
+    const nodeObject = {
+      [nodeID]: {
+        node_type: nodeType,
+        node_settings: {},
+        next_node: "",
+        trigger: {
+          trigger_type: nodeTrigger,
+        },
+        requirements: [],
+        commands: [],
+      },
+    };
+
+    nodesObject[nodeID] = nodeObject[nodeID];
+
     const newNode = {
-      id: getNodeId(),
-      data: { label: 'Added node' },
+      id: nodeID,
+      type: "customNode",
+      data: { ...nodeData, label: nodeID },
       position: {
         x: (Math.random() - 0.5) * 400,
         y: (Math.random() - 0.5) * 400,
       },
     };
+
     setNodes((nds) => nds.concat(newNode));
-  }, [setNodes]);
+  }, [nodeData, setNodes]);
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNodeId(node.id); // Set the selected node ID
+    if (nodesObject[node.id]) {
+      setEditedJson(JSON.stringify(nodesObject[node.id], null, 2)); // Load JSON for editing
+    }
+  }, []);
+
+  const handleSave = () => {
+    try {
+      const parsedJson = JSON.parse(editedJson); // Validate JSON
+      nodesObject[selectedNodeId] = parsedJson; // Update the node object
+      toast.success("Node updated successfully");
+    } catch (error) {
+      toast.error("Invalid JSON format");
+    }
+  };
+
+  const nodeTypes = useMemo(() => ({ customNode: CustomNode }), []);
 
   return (
-    <div className='flex flex-row gap-12'>
-      <div className='w-[1080px] h-[720px]'>
+    <div className="flex flex-row gap-12">
+      <div className="w-[1080px] h-[720px]">
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={onNodeClick} // Handle node clicks
           fitView
           fitViewOptions={{ padding: 2 }}
           style={{ backgroundColor: "#F7F9FB" }}
+          nodeTypes={nodeTypes}
         >
           <Background />
-          <Panel position="top-center" className='flex flex-row gap-5'>
-            <Input type="text" id="nodeID" placeholder="Node ID" className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition"/>
-            <Select>
-              <SelectTrigger className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition">
+          <Panel position="top-center" className="flex flex-row gap-5">
+            <Input
+              type="text"
+              id="nodeID"
+              placeholder="Node ID"
+              className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition"
+              onChange={(e) => updateNodeData("nodeID", e.target.value)}
+              value={nodeData.nodeID}
+            />
+            <Select onValueChange={(value) => updateNodeData("nodeType", value)}>
+              <SelectTrigger id="nodeType" className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition">
                 <SelectValue placeholder="Node Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="TITLE">Title Node</SelectItem>
                   <SelectItem value="SUBTITLE">Subtitle Node</SelectItem>
-                  <SelectItem value="TITLE_SUBTITLE">Title Subtitle Node</SelectItem>
                   <SelectItem value="INPUT">Input Node</SelectItem>
                   <SelectItem value="CHOICE">Choice Node</SelectItem>
                   <SelectItem value="DISPLAY">Display Node</SelectItem>
@@ -79,9 +176,9 @@ const SaveRestore = () => {
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <Select>
-              <SelectTrigger className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition">
-                <SelectValue placeholder="Trigger Type" />
+            <Select onValueChange={(value) => updateNodeData("nodeTrigger", value)}>
+              <SelectTrigger id="triggerType" className="w-[175px] h-[40px] bg-black text-white border-black active:scale-95 transition">
+                <SelectValue placeholder="Trigger Type" id="triggerType" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -96,12 +193,33 @@ const SaveRestore = () => {
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <Button className="w-[100px] h-[40px] bg-black text-white border-black active:scale-95 transition" variant="outline" onClick={onAdd}>Add Node</Button>
+            <Button className="w-[100px] h-[40px] bg-black text-white border-black active:scale-95 transition" variant="outline" onClick={onAdd}>
+              Create Node
+            </Button>
           </Panel>
         </ReactFlow>
       </div>
-      <div className='w-[250px]'>
-        <h1 className='text-white'>AAAAAAA</h1>
+      <div className="w-[400px] bg-gray-800 text-white p-4 rounded-lg">
+        
+        {selectedNodeId && nodesObject[selectedNodeId] ? (
+          <>
+            <h1 className="text-lg font-bold mb-4">Node Editor for {selectedNodeId}</h1>
+            <textarea
+              className="w-full h-[300px] bg-gray-700 text-white p-2 rounded"
+              value={editedJson}
+              onChange={(e) => setEditedJson(e.target.value)}
+              spellCheck="false"
+            />
+            <Button
+              className="w-full mt-4 bg-blue-600 text-white p-2 rounded active:scale-95"
+              onClick={handleSave}
+            >
+              Save Changes
+            </Button>
+          </>
+        ) : (
+          <><h1 className="text-lg font-bold mb-4">Node Editor</h1><p>No node selected</p></>
+        )}
       </div>
     </div>
   );
