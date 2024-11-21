@@ -20,14 +20,14 @@ const nodesObject = {};
 const initialNodes = [];
 const initialEdges = [];
 
-const CustomNode = ({ data }) => {
+const CustomNode = ({ data, isSelected }) => {
   return (
     <div
       style={{
-        border: "2px solid #333",
+        border: isSelected ? "2px solid #007BFF" : "2px solid #333",
         padding: "10px",
         borderRadius: "8px",
-        backgroundColor: "#f0f0f0",
+        backgroundColor: isSelected ? "#e3e3e3" : "#f0f0f0",
         minWidth: "150px",
         textAlign: "center",
       }}
@@ -123,16 +123,36 @@ const SaveRestore = () => {
   }, []);
 
   const handleSave = () => {
-    try {
-      const parsedJson = JSON.parse(editedJson); // Validate JSON
-      nodesObject[selectedNodeId] = parsedJson; // Update the node object
-      toast.success("Node updated successfully");
-    } catch (error) {
-      toast.error("Invalid JSON format");
+    if (window.confirm("Are you sure you want to save changes to this node?")) {
+      try {
+        const parsedJson = JSON.parse(editedJson); // Validate JSON
+        nodesObject[selectedNodeId] = parsedJson; // Update the node object
+        toast.success("Node updated successfully");
+      } catch (error) {
+        toast.error("Invalid JSON format");
+      }
     }
   };
 
-  const nodeTypes = useMemo(() => ({ customNode: CustomNode }), []);
+  const handleDelete = () => {
+    if (window.confirm("Are you sure you want to delete this node?")) {
+      const updatedNodes = nodes.filter((node) => node.id !== selectedNodeId);
+      setNodes(updatedNodes); // Remove node from canvas
+      delete nodesObject[selectedNodeId]; // Remove node from the nodesObject
+      setSelectedNodeId(null); // Clear selection
+      setEditedJson(""); // Clear the JSON editor
+      toast.success("Node deleted successfully");
+    }
+  };
+
+  const nodeTypes = useMemo(
+    () => ({
+      customNode: (props) => (
+        <CustomNode {...props} isSelected={props.id === selectedNodeId} />
+      ),
+    }),
+    [selectedNodeId]
+  );
 
   return (
     <div className="flex flex-row gap-12">
@@ -200,10 +220,9 @@ const SaveRestore = () => {
         </ReactFlow>
       </div>
       <div className="w-[400px] bg-gray-800 text-white p-4 rounded-lg">
-        
+        <h1 className="text-lg font-bold mb-4">Node Details</h1>
         {selectedNodeId && nodesObject[selectedNodeId] ? (
           <>
-            <h1 className="text-lg font-bold mb-4">Node Editor for {selectedNodeId}</h1>
             <textarea
               className="w-full h-[300px] bg-gray-700 text-white p-2 rounded"
               value={editedJson}
@@ -216,9 +235,15 @@ const SaveRestore = () => {
             >
               Save Changes
             </Button>
+            <Button
+              className="w-full mt-2 bg-red-600 text-white p-2 rounded active:scale-95"
+              onClick={handleDelete}
+            >
+              Delete Node
+            </Button>
           </>
         ) : (
-          <><h1 className="text-lg font-bold mb-4">Node Editor</h1><p>No node selected</p></>
+          <p>No node selected</p>
         )}
       </div>
     </div>
