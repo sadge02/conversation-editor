@@ -16,86 +16,21 @@ import { Select, SelectTrigger, SelectGroup, SelectValue, SelectContent, SelectI
 import { Input } from "../ui/input";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../ui/alert-dialog";
 import { toast } from "sonner";
+import {NodeType} from "../types/NodeType";
 
 import "@xyflow/react/dist/style.css";
 import { AlignRight } from "lucide-react";
+import { get } from "http";
+import { GetCommands, GetTrigger, GetNode } from "../objects/JsonObjects";
 
 const nodesObject = {};
 
 const initialNodes: any[] = [];
 const initialEdges: any[] = [];
 
-const NodeType = ({ data, isSelected }: { data: any; isSelected: boolean }) => {
 
-  // To trigger React Flow to re-layout the node when we change its size or handles
-  const updateNodeInternals = useUpdateNodeInternals();
-  useEffect(() => {
-    setTimeout(() => {
-      updateNodeInternals(data.nodeID);
-    }, 0);
-  }, [data.nodeID, updateNodeInternals, data, isSelected]);
 
-  return (
-    <div
-      id={data.nodeID}
-      style={{
-        border: isSelected ? "2px solid #007BFF" : "2px solid #333",
-        padding: "10px",
-        borderRadius: "8px",
-        backgroundColor: isSelected ? "#D8EAFE" : "#f0f0f0",
-        textAlign: "center",
-        position: "relative", // Make the node container a positioned element
-      }}
-    >
-      <Handle
-        type="target"
-        isConnectable={true}
-        isConnectableEnd={true}
-        isConnectableStart={false}
-        position={Position.Top}
-        style={{ background: "#128011" }}
-      />
-      <strong>{data.nodeID}</strong>
-      <br />
-      {data.nodeType} Node
-      <br />
-      {data.nodeTrigger} Trigger
 
-      {/* Render handles for CHOICE node */}
-      {data.nodeType === "CHOICE" &&
-        Array.from({ length: data.numChoices }, (_, index) => (
-          <Handle
-            id={`${data.nodeID}-${index}`}
-            key={index}
-            type="source"
-            isConnectable={true}
-            isConnectableEnd={false}
-            isConnectableStart={true}
-            position={Position.Bottom}
-            style={{
-              left: ((document.getElementById(data.nodeID)?.offsetWidth ?? 0) / (data.numChoices + 1)) * (index + 1),
-              background: "#f54251",
-              position: "absolute",
-            }}
-          />
-        ))}
-
-      {/* Default target handle for non-choice nodes */}
-      {data.nodeType !== "CHOICE" && (
-        <Handle
-          id={`${data.nodeID}-0`}
-          key={0}
-          type="source"
-          isConnectable={true}
-          isConnectableEnd={false}
-          isConnectableStart={true}
-          position={Position.Bottom}
-          style={{ background: "#f54251" }}
-        />
-      )}
-    </div>
-  );
-};
 
 const SaveRestore = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -119,7 +54,31 @@ const SaveRestore = () => {
   };
 
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
+    (params) => {
+      setEdges((eds) => addEdge(params, eds));
+  
+      // Extract the source and target node IDs from the connection params
+      const { source, target, sourceHandle } = params;
+  
+      if (!source || !target) return;
+  
+      // Update the nextNode field in the source node's settings
+      if (nodesObject[source]) {
+        if (nodesObject[source].node_type === "CHOICE" && sourceHandle) {
+          // If the node type is CHOICE, determine the choice index from the source handle ID
+          const choiceIndex = parseInt(sourceHandle.split('-').pop(), 10); // Get the index from the handle ID
+          if (!isNaN(choiceIndex)) {
+            nodesObject[source].node_settings.choices[choiceIndex].node = target;
+          }
+        } else {
+          // For other nodes, update the nextNode directly
+          nodesObject[source].next_node = target;
+        }
+      }
+  
+      // Optionally notify the user of the connection
+      toast.success(`Connected ${source} to ${target}`);
+    },
     [setEdges]
   );
 
@@ -159,13 +118,11 @@ const SaveRestore = () => {
     const nodeObject = {
       [nodeID]: {
         node_type: nodeType,
-        node_settings: {},
+        node_settings: GetNode(nodeType, numChoices),
         next_node: "",
-        trigger: {
-          trigger_type: nodeTrigger,
-        },
+        trigger: GetTrigger(nodeTrigger),
         requirements: [],
-        commands: Array(numCommands).fill(""),
+        commands: GetCommands(numCommands),
       },
     };
 
@@ -176,8 +133,8 @@ const SaveRestore = () => {
       type: "NodeType",
       data: { ...nodeData, label: nodeID },
       position: {
-        x: (Math.random() - 0.5) * 400,
-        y: (Math.random() - 0.5) * 400,
+        x: (Math.random() - 0.5) * 100,
+        y: (Math.random() - 0.5) * 100,
       },
     };
 
@@ -202,11 +159,40 @@ const SaveRestore = () => {
   };
 
   const handleDelete = () => {
+    if (!selectedNodeId) return;
+  
+    // Remove the node from the nodes array
     const updatedNodes = nodes.filter((node) => node.id !== selectedNodeId);
     setNodes(updatedNodes);
+  
+    // Clear references to the deleted node in other nodes
+    Object.keys(nodesObject).forEach((nodeId) => {
+      if (nodesObject[nodeId].next_node === selectedNodeId) {
+        nodesObject[nodeId].next_node = "";
+      }
+  
+      if (nodesObject[nodeId].node_type === "CHOICE") {
+        nodesObject[nodeId].node_settings.choices.forEach((choice) => {
+          if (choice.node === selectedNodeId) {
+            choice.node = "";
+          }
+        });
+      }
+    });
+  
+    // Delete the node from the `nodesObject`
     delete nodesObject[selectedNodeId];
+  
+    // Remove all edges connected to the deleted node
+    const updatedEdges = edges.filter(
+      (edge) => edge.source !== selectedNodeId && edge.target !== selectedNodeId
+    );
+    setEdges(updatedEdges);
+  
+    // Reset the selected node
     setSelectedNodeId(null);
     setEditedJson("");
+  
     toast.success("Node deleted successfully");
   };
 
