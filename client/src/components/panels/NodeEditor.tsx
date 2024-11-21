@@ -60,7 +60,7 @@ export const NodeEditor = () => {
   };
 
   return (
-    <div className="flex flex-row gap-12">
+    <div className="flex flex-row gap-12 justify-evenly">
       <ConversationPanel
         conversationData={conversationData}
         handleInputChange={handleInputChange}

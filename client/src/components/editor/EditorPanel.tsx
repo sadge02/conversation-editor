@@ -28,7 +28,7 @@ const initialEdges = JSON.parse(localStorage.getItem("edges") || "[]");
 const Editor = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedEdge, setSelectedEdge] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState<{ id: string; source: string; target: string } | null>(null);
   const [nodeData, setNodeData] = useState({
     nodeID: "",
     nodeType: "",
@@ -351,7 +351,7 @@ const Editor = () => {
               <div className="flex items-center justify-between pt-5">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 active:scale-95 transition">
+                    <Button className="w-[75px] bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 active:scale-95 transition">
                       Delete All
                     </Button>
                   </AlertDialogTrigger>
@@ -366,7 +366,7 @@ const Editor = () => {
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleDeleteAll}
-                        className="w-[300px] bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
                       >
                         Confirm
                       </AlertDialogAction>
