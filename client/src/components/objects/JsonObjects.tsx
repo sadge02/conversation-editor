@@ -1,31 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import {
-    Background,
-    ReactFlow,
-    ReactFlowProvider,
-    useNodesState,
-    useEdgesState,
-    addEdge,
-    Panel,
-    Handle,
-    Position,
-    useUpdateNodeInternals
-} from "@xyflow/react";
-import { Button } from "../ui/button";
-import { Select, SelectTrigger, SelectGroup, SelectValue, SelectContent, SelectItem } from "../ui/select";
-import { Input } from "../ui/input";
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../ui/alert-dialog";
-import { toast } from "sonner";
-import { NodeType } from "../types/NodeType";
-
 import "@xyflow/react/dist/style.css";
-import { AlignRight } from "lucide-react";
-import { get } from "http";
+
 
 export function GetChoices(numChoices: number) {
-    return Array.from({ length: numChoices }, (_, index) => ({
+    return Array.from({ length: numChoices }, (_) => ({
         "text": "",
-        "display_settings": getDisplaySettings(),
+        "display_settings": GetDisplaySettings(),
         "target": "ENTITY",
         "location": { "x": 0, "y": 0, "z": 0 },
         "requirements": [],
@@ -181,7 +160,7 @@ export function GetTrigger(trigger: string) {
 }
 
 export function GetCommands(numCommands: number) {
-    return Array.from({ length: numCommands }, (_, index) => ({
+    return Array.from({ length: numCommands }, (_) => ({
         "command": "",
         "execute": "START",
         "delay": 0,

@@ -1,15 +1,5 @@
 import React from "react";
-
-type ConversationData = {
-  startSound: boolean;
-  endSound: boolean;
-  startMessage: boolean;
-  endMessage: boolean;
-  blocking: boolean;
-  citizens: boolean;
-  conversationName: string;
-  nodeId: string;
-};
+import { ConversationData } from "../types/ConversationType";
 
 type ConversationPanelProps = {
   conversationData: ConversationData;
@@ -38,7 +28,6 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
             placeholder="Enter conversation name"
           />
         </div>
-
         <div>
           <label className="text-white block">Start Node</label>
           <input
@@ -49,7 +38,6 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
             placeholder="Enter start node ID"
           />
         </div>
-
         <div className="space-y-2">
           <label className="text-white block">Conversation Settings</label>
           {[
@@ -72,7 +60,6 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
             </div>
           ))}
         </div>
-
         <div className="space-x-2">
           <button
             onClick={exportJson}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Background,
   ReactFlow,
@@ -7,34 +7,28 @@ import {
   useEdgesState,
   addEdge,
   Panel,
-  Handle,
-  Position,
-  useUpdateNodeInternals
 } from "@xyflow/react";
 import { Button } from "../ui/button";
 import { Select, SelectTrigger, SelectGroup, SelectValue, SelectContent, SelectItem } from "../ui/select";
 import { Input } from "../ui/input";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../ui/alert-dialog";
 import { toast } from "sonner";
-import {NodeType} from "../types/NodeType";
-
-import "@xyflow/react/dist/style.css";
-import { AlignRight } from "lucide-react";
-import { get } from "http";
+import { NodeType } from "../types/NodeType";
 import { GetCommands, GetTrigger, GetNode } from "../objects/JsonObjects";
 
-const nodesObject = {};
+import "@xyflow/react/dist/style.css";
 
-const initialNodes: any[] = [];
-const initialEdges: any[] = [];
+export const nodesObject: { [key: string]: any } = JSON.parse(
+  localStorage.getItem("nodesObject") || "{}"
+);
 
+const initialNodes = JSON.parse(localStorage.getItem("nodes") || "[]");
+const initialEdges = JSON.parse(localStorage.getItem("edges") || "[]");
 
-
-
-
-const SaveRestore = () => {
+const Editor = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [selectedEdge, setSelectedEdge] = useState(null);
   const [nodeData, setNodeData] = useState({
     nodeID: "",
     nodeType: "",
@@ -42,9 +36,32 @@ const SaveRestore = () => {
     numChoices: 0,
     numCommands: 0,
   });
-  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(null);
   const [editedJson, setEditedJson] = useState("");
 
+  useEffect(() => {
+    localStorage.setItem("nodes", JSON.stringify(nodes));
+  }, [nodes]);
+
+  useEffect(() => {
+    localStorage.setItem("edges", JSON.stringify(edges));
+  }, [edges]);
+
+  useEffect(() => {
+    localStorage.setItem("nodesObject", JSON.stringify(nodesObject));
+  }, [nodes]);
+
+  const handleDeleteAll = () => {
+    setNodes([]);
+    setEdges([]);
+    Object.keys(nodesObject).forEach((key) => delete nodesObject[key]);
+
+    localStorage.removeItem("nodes");
+    localStorage.removeItem("edges");
+    localStorage.removeItem("nodesObject");
+
+    toast.success("All nodes, edges, and node objects have been deleted.");
+  };
 
   const updateNodeData = (key: string, value: string | number) => {
     setNodeData((prev) => ({
@@ -54,33 +71,60 @@ const SaveRestore = () => {
   };
 
   const onConnect = useCallback(
-    (params) => {
+    (params: { source: any; target: any; sourceHandle: any }) => {
       setEdges((eds) => addEdge(params, eds));
-  
-      // Extract the source and target node IDs from the connection params
+
       const { source, target, sourceHandle } = params;
-  
+
       if (!source || !target) return;
-  
-      // Update the nextNode field in the source node's settings
+
       if (nodesObject[source]) {
         if (nodesObject[source].node_type === "CHOICE" && sourceHandle) {
-          // If the node type is CHOICE, determine the choice index from the source handle ID
-          const choiceIndex = parseInt(sourceHandle.split('-').pop(), 10); // Get the index from the handle ID
+          const choiceIndex = parseInt(sourceHandle.split("-").pop(), 10);
           if (!isNaN(choiceIndex)) {
             nodesObject[source].node_settings.choices[choiceIndex].node = target;
           }
         } else {
-          // For other nodes, update the nextNode directly
           nodesObject[source].next_node = target;
         }
       }
-  
-      // Optionally notify the user of the connection
       toast.success(`Connected ${source} to ${target}`);
     },
     [setEdges]
   );
+
+  const handleEdgeClick = (event: any, edge: any) => {
+    event.stopPropagation();
+    setSelectedEdge(edge);
+  };
+
+  const handleRemoveSelectedEdge = () => {
+    if (!selectedEdge) {
+      toast.error("No edge selected");
+      return;
+    }
+
+    const { source, target } = selectedEdge;
+
+    setEdges((currentEdges) =>
+      currentEdges.filter((edge) => edge.id !== selectedEdge.id)
+    );
+
+    if (nodesObject[source]?.next_node === target) {
+      nodesObject[source].next_node = "";
+    }
+
+    if (nodesObject[source]?.node_type === "CHOICE") {
+      nodesObject[source].node_settings.choices.forEach((choice: { node: string }) => {
+        if (choice.node === target) {
+          choice.node = "";
+        }
+      });
+    }
+
+    setSelectedEdge(null);
+    toast.success(`Removed edge from ${source} to ${target}`);
+  };
 
   const onAdd = useCallback(() => {
     const { nodeID, nodeType, nodeTrigger, numChoices, numCommands } = nodeData;
@@ -90,18 +134,13 @@ const SaveRestore = () => {
       return;
     }
 
+    if (!nodeType || !nodeTrigger) {
+      toast("Please select a valid Node Type and Trigger Type");
+      return
+    }
+
     if (nodesObject[nodeID]) {
       toast("Node ID already exists");
-      return;
-    }
-
-    if (!nodeType) {
-      toast("Please select a Node Type");
-      return;
-    }
-
-    if (!nodeTrigger) {
-      toast("Please select a Trigger Type");
       return;
     }
 
@@ -141,7 +180,7 @@ const SaveRestore = () => {
     setNodes((nds) => nds.concat(newNode));
   }, [nodeData, setNodes]);
 
-  const onNodeClick = useCallback((event, node) => {
+  const onNodeClick = useCallback((_event: any, node: { id: string | number; }) => {
     setSelectedNodeId(node.id);
     if (nodesObject[node.id]) {
       setEditedJson(JSON.stringify(nodesObject[node.id], null, 2));
@@ -151,7 +190,12 @@ const SaveRestore = () => {
   const handleSave = () => {
     try {
       const parsedJson = JSON.parse(editedJson);
-      nodesObject[selectedNodeId] = parsedJson;
+      if (selectedNodeId !== null) {
+        nodesObject[selectedNodeId] = parsedJson;
+      } else {
+        toast.error("No node selected");
+        return;
+      }
       toast.success("Node updated successfully");
     } catch (error) {
       toast.error("Invalid JSON format");
@@ -160,45 +204,40 @@ const SaveRestore = () => {
 
   const handleDelete = () => {
     if (!selectedNodeId) return;
-  
-    // Remove the node from the nodes array
+
     const updatedNodes = nodes.filter((node) => node.id !== selectedNodeId);
     setNodes(updatedNodes);
-  
-    // Clear references to the deleted node in other nodes
+
     Object.keys(nodesObject).forEach((nodeId) => {
       if (nodesObject[nodeId].next_node === selectedNodeId) {
         nodesObject[nodeId].next_node = "";
       }
-  
+
       if (nodesObject[nodeId].node_type === "CHOICE") {
-        nodesObject[nodeId].node_settings.choices.forEach((choice) => {
+        nodesObject[nodeId].node_settings.choices.forEach((choice: { node: string; }) => {
           if (choice.node === selectedNodeId) {
             choice.node = "";
           }
         });
       }
     });
-  
-    // Delete the node from the `nodesObject`
+
     delete nodesObject[selectedNodeId];
-  
-    // Remove all edges connected to the deleted node
+
     const updatedEdges = edges.filter(
       (edge) => edge.source !== selectedNodeId && edge.target !== selectedNodeId
     );
     setEdges(updatedEdges);
-  
-    // Reset the selected node
+
     setSelectedNodeId(null);
     setEditedJson("");
-  
+
     toast.success("Node deleted successfully");
   };
 
   const nodeTypes = useMemo(
     () => ({
-      NodeType: (props) => (
+      NodeType: (props: any) => (
         <NodeType {...props} isSelected={props.id === selectedNodeId} />
       ),
     }),
@@ -207,7 +246,6 @@ const SaveRestore = () => {
 
   return (
     <div className="flex flex-row gap-12">
-
       <div className="w-[1080px] h-[720px]">
         <ReactFlow
           nodes={nodes}
@@ -216,13 +254,14 @@ const SaveRestore = () => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={handleEdgeClick}
           fitView
           fitViewOptions={{ padding: 2 }}
           style={{ backgroundColor: "#F7F9FB" }}
           nodeTypes={nodeTypes}
         >
           <Background />
-          <Panel position="left-bottom" className="flex flex-row justify-end gap-5">
+          <Panel position="bottom-left" className="flex flex-row justify-end gap-5">
             <div className="bg-slate-900 w-[315px] p-5 rounded-lg flex flex-col gap-2">
               <div className="flex flex-row text-white justify-between align-middle font-bold">
                 <div className="flex items-center justify-center">
@@ -309,9 +348,33 @@ const SaveRestore = () => {
                   value={nodeData.numCommands}
                 />
               </div>
-              <div className="flex items-center justify-end pt-5">
+              <div className="flex items-center justify-between pt-5">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 active:scale-95 transition">
+                      Delete All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete all nodes, edges, and node objects? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAll}
+                        className="w-[300px] bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+                      >
+                        Confirm
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Button
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition border-0 hover:text-white"
+                  className="w-[150px] bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition border-0 hover:text-white"
                   variant="outline"
                   onClick={onAdd}
                 >
@@ -322,7 +385,6 @@ const SaveRestore = () => {
           </Panel>
         </ReactFlow>
       </div>
-
       <div className="w-[350px] bg-slate-900 shadow-md rounded-md">
         <h2 className="font-bold text-xl mb-4 text-white">Node Details</h2>
         {selectedNodeId ? (
@@ -333,10 +395,37 @@ const SaveRestore = () => {
               onChange={(e) => setEditedJson(e.target.value)}
               spellCheck={false}
             />
-            <div className="flex gap-2">
+
+            <div className="flex gap-2 justify-evenly">
               <AlertDialog>
                 <AlertDialogTrigger>
-                  <Button variant="outline" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition hover:text-white border-0">
+                  <Button
+                    variant="outline"
+                    className="w-[95px] bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition border-0 hover:text-white"
+                    disabled={!selectedEdge}
+                  >
+                    Remove Edge
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to save delete this edge? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRemoveSelectedEdge}>Continue</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger>
+                  <Button
+                    variant="outline"
+                    className="w-[95px] bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition hover:text-white border-0"
+                  >
                     Save Changes
                   </Button>
                 </AlertDialogTrigger>
@@ -355,7 +444,10 @@ const SaveRestore = () => {
               </AlertDialog>
               <AlertDialog>
                 <AlertDialogTrigger>
-                  <Button variant="outline" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition hover:text-white border-0">
+                  <Button
+                    variant="outline"
+                    className="w-[95px] bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 active:scale-95 transition hover:text-white border-0"
+                  >
                     Delete Node
                   </Button>
                 </AlertDialogTrigger>
@@ -384,6 +476,6 @@ const SaveRestore = () => {
 
 export default () => (
   <ReactFlowProvider>
-    <SaveRestore />
+    <Editor />
   </ReactFlowProvider>
 );

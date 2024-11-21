@@ -1,18 +1,9 @@
 import { useState } from "react";
 import "reactflow/dist/style.css";
 import ConversationPanel from "../editor/ConversationPanel";
-import Editor from "../panels/Editor";
-
-type ConversationData = {
-  startSound: boolean;
-  endSound: boolean;
-  startMessage: boolean;
-  endMessage: boolean;
-  blocking: boolean;
-  citizens: boolean;
-  conversationName: string;
-  nodeId: string;
-};
+import Editor from "../editor/EditorPanel";
+import { ConversationData } from "../types/ConversationType";
+import { nodesObject } from "../editor/EditorPanel";
 
 const defaultConversationData: ConversationData = {
   startSound: false,
@@ -57,6 +48,7 @@ export const NodeEditor = () => {
         citizens: conversationData.citizens,
       },
       players: {},
+      nodes: nodesObject
     };
   
     const json = JSON.stringify(output, null, 2);
