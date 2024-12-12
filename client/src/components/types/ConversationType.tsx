@@ -7,4 +7,6 @@ export type ConversationData = {
     citizens: boolean;
     conversationName: string;
     nodeId: string;
+    addOnJoin: boolean;
+    startOnJoin: boolean;
 };

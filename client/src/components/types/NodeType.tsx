@@ -45,7 +45,7 @@ export const NodeType = ({ data, isSelected }: { data: any; isSelected: boolean 
       {data.nodeType === "CHOICE" &&
         Array.from({ length: data.numChoices }, (_, index) => (
           <Handle
-            id={`${data.nodeID}-${index}`}
+            id={`${index}`}
             key={index}
             type="source"
             isConnectable={true}

@@ -11,7 +11,7 @@ import NodeEditor from './components/panels/NodeEditor';
 function App() {
   return (
     <div className="flex flex-col items-center w-dvw h-dvh bg-gray-900 overflow-y-scroll">
-      <header className="flex flex-col items-center p-12">
+      <header className="flex flex-col items-center p-4">
         <div className="flex items-center flex-nowrap space-x-2 align-middle gap-5npm install @xyflow/react gap-5">
           <h1 className="text-5xl font-light text-white text-nowrap">
             <span className="font-bold">Conversation</span> Editor
@@ -19,11 +19,10 @@ function App() {
           <img
             src={img}
             alt="Logo"
-            className="h-24 w-36"
+            className="h-22 w-36"
           />
         </div>
       </header>
-      {/* Tabs */}
       <div className="flex flex-col items-center w-full">
         <Tabs defaultValue="plugin" className="flex flex-col items-center w-full">
           <TabsList className="flex flex-row justify-evenly py-8 bg-gray-800 max-w-[50%] min-w-fit px-6 gap-4">
