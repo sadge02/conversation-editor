@@ -347,6 +347,12 @@ const Editor: React.FC<ConversationPanelProps> = ({
     nodesObject[selectedNodeId] = resetNode;
     setEditedJson(JSON.stringify(resetNode, null, 2));
 
+    const newEdges = edges.filter((edge) => {
+      return edge.source !== selectedNodeId;
+    });
+
+    setEdges(newEdges);
+
     toast.success("Node reset successfully");
   };
 
