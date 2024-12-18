@@ -23,6 +23,9 @@ export const NodeEditor = () => {
     defaultConversationData
   );
 
+  const initialNodes = JSON.parse(localStorage.getItem("nodes") || "[]");
+  const initialEdges = JSON.parse(localStorage.getItem("edges") || "[]");
+
   const handleInputChange = (
     key: keyof ConversationData,
     value: string | boolean
@@ -74,6 +77,8 @@ export const NodeEditor = () => {
         conversationData={conversationData}
         handleInputChange={handleInputChange}
         exportJson={exportJson}
+        initialNodes={initialNodes}
+        initialEdges={initialEdges}
       />
     </div>
   );

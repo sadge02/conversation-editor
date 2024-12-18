@@ -31,13 +31,12 @@ export const nodesObject: { [key: string]: any } = JSON.parse(
   localStorage.getItem("nodesObject") || "{}"
 );
 
-const initialNodes = JSON.parse(localStorage.getItem("nodes") || "[]");
-const initialEdges = JSON.parse(localStorage.getItem("edges") || "[]");
-
 const Editor: React.FC<ConversationPanelProps> = ({
   conversationData,
   handleInputChange,
   exportJson,
+  initialNodes,
+  initialEdges,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(
